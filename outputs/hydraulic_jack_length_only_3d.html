@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>液压千斤顶危险工况 3D 模型</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --panel: rgba(17, 24, 39, 0.78);
+      --panel-strong: rgba(15, 23, 42, 0.92);
+      --line: rgba(148, 163, 184, 0.28);
+      --text: #eef2ff;
+      --muted: #aab4c6;
+      --accent: #38bdf8;
+      --warn: #f97316;
+      --danger: #ef4444;
+      --ok: #22c55e;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      background: #0b1020;
+      color: var(--text);
+    }
+
+    #scene {
+      position: fixed;
+      inset: 0;
+    }
+
+    .hud {
+      position: fixed;
+      left: 18px;
+      top: 18px;
+      width: min(420px, calc(100vw - 36px));
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.28);
+      padding: 16px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      line-height: 1.25;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .sub {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .metric {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.045);
+      padding: 10px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 18px;
+      line-height: 1.15;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .bar {
+      height: 12px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 2px 0 14px;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--ok), #facc15, var(--warn), var(--danger));
+      transition: width 140ms ease;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      width: 40px;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    button:hover {
+      background: rgba(56, 189, 248, 0.18);
+      border-color: rgba(56, 189, 248, 0.55);
+    }
+
+    .formula {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(2, 6, 23, 0.42);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .formula code {
+      font-family: "Cascadia Mono", Consolas, monospace;
+      color: #bfdbfe;
+      font-size: 14px;
+    }
+
+    .badge {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      background: rgba(239, 68, 68, 0.15);
+      color: #fecaca;
+      padding: 5px 9px;
+      font-size: 12px;
+    }
+
+    .legend {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      width: min(330px, calc(100vw - 36px));
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .legend-row {
+      display: grid;
+      grid-template-columns: 13px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin: 5px 0;
+    }
+
+    .swatch {
+      width: 11px;
+      height: 11px;
+      border-radius: 2px;
+      background: var(--accent);
+    }
+
+    .swatch.red { background: var(--danger); }
+    .swatch.gold { background: #facc15; }
+    .swatch.steel { background: #94a3b8; }
+
+    .status {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 720px) {
+      .hud {
+        left: 10px;
+        top: 10px;
+        width: calc(100vw - 20px);
+        padding: 12px;
+      }
+
+      h1 { font-size: 17px; }
+      .sub { font-size: 12px; }
+      .metrics { grid-template-columns: 1fr; }
+      .metric {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .metric strong { margin-top: 0; font-size: 16px; }
+      .legend {
+        display: none;
+      }
+      .status {
+        bottom: 10px;
+        width: calc(100vw - 20px);
+        text-align: center;
+        white-space: normal;
+        border-radius: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <section class="hud" aria-label="液压千斤顶临界力控制面板">
+    <h1>液压千斤顶：活塞杆全伸出危险工况</h1>
+    <p class="sub">拖动滑块改变活塞杆伸出长度，模型按 <strong>临界力与伸出长度平方成反比</strong> 更新风险。</p>
+
+    <div class="metrics">
+      <div class="metric">
+        <span>伸出长度</span>
+        <strong id="lengthText">100%</strong>
+      </div>
+      <div class="metric">
+        <span>相对临界力</span>
+        <strong id="forceText">7%</strong>
+      </div>
+      <div class="metric">
+        <span>危险程度</span>
+        <strong id="riskText">高</strong>
+      </div>
+    </div>
+
+    <div class="bar" aria-hidden="true"><div id="riskBar" class="bar-fill"></div></div>
+
+    <div class="control-row">
+      <div>
+        <label for="extension">活塞杆伸出长度</label>
+        <input id="extension" type="range" min="25" max="100" value="100" step="1" />
+      </div>
+      <div class="button-row">
+        <button id="minBtn" title="收回">↧</button>
+        <button id="maxBtn" title="全伸出">↥</button>
+      </div>
+    </div>
+
+    <div class="formula">
+      <code>Pcr / P0 = (L0 / L)²</code>
+      <span id="dangerBadge" class="badge">全伸出最危险</span>
+    </div>
+  </section>
+
+  <aside class="legend" aria-label="图例">
+    <div class="legend-row"><span class="swatch steel"></span><span>银色：液压缸体与伸出活塞杆</span></div>
+    <div class="legend-row"><span class="swatch gold"></span><span>黄色：受压载荷与顶托</span></div>
+    <div class="legend-row"><span class="swatch red"></span><span>红色：长细杆屈曲风险区域与弯曲示意</span></div>
+    <div class="legend-row"><span class="swatch"></span><span>鼠标拖动旋转，滚轮缩放，右键平移</span></div>
+  </aside>
+
+  <div id="status" class="status">当前为全伸出状态，临界承载能力最低。</div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const canvas = document.getElementById("scene");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b1020);
+    scene.fog = new THREE.Fog(0x0b1020, 16, 38);
+
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+    camera.position.set(7.6, 5.4, 9.2);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 2.4, 0);
+    controls.maxPolarAngle = Math.PI * 0.48;
+    controls.minDistance = 5;
+    controls.maxDistance = 18;
+
+    const hemi = new THREE.HemisphereLight(0xdbeafe, 0x111827, 1.9);
+    scene.add(hemi);
+
+    const key = new THREE.DirectionalLight(0xffffff, 2.4);
+    key.position.set(5, 9, 6);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.camera.near = 1;
+    key.shadow.camera.far = 25;
+    key.shadow.camera.left = -8;
+    key.shadow.camera.right = 8;
+    key.shadow.camera.top = 8;
+    key.shadow.camera.bottom = -8;
+    scene.add(key);
+
+    const rim = new THREE.DirectionalLight(0x38bdf8, 1.1);
+    rim.position.set(-7, 4, -5);
+    scene.add(rim);
+
+    const matBase = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.58, metalness: 0.45 });
+    const matSteel = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.22, metalness: 0.9 });
+    const matDarkSteel = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.35, metalness: 0.8 });
+    const matBlue = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, roughness: 0.34, metalness: 0.35 });
+    const matGold = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.38, metalness: 0.42 });
+    const matRed = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.45, metalness: 0.1, transparent: true, opacity: 0.22 });
+    const matRedLine = new THREE.LineBasicMaterial({ color: 0xff4d4d, transparent: true, opacity: 0.95 });
+    const matGrid = new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.45 });
+
+    function cylinder(radiusTop, radiusBottom, height, material, segments = 64) {
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments), material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
+
+    function box(w, h, d, material) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
+
+    const jack = new THREE.Group();
+    scene.add(jack);
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(22, 22),
+      new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.9, metalness: 0.05 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const grid = new THREE.GridHelper(22, 22, 0x475569, 0x263244);
+    grid.material.opacity = 0.36;
+    grid.material.transparent = true;
+    scene.add(grid);
+
+    const base = box(3.8, 0.32, 3.8, matBase);
+    base.position.y = 0.16;
+    jack.add(base);
+
+    const baseRound = cylinder(1.45, 1.65, 0.42, matDarkSteel);
+    baseRound.position.y = 0.55;
+    jack.add(baseRound);
+
+    const outerCylinder = cylinder(0.78, 0.86, 2.45, matBlue);
+    outerCylinder.position.y = 1.85;
+    jack.add(outerCylinder);
+
+    const collar = cylinder(0.98, 0.98, 0.28, matDarkSteel);
+    collar.position.y = 3.16;
+    jack.add(collar);
+
+    const piston = cylinder(0.34, 0.34, 3.8, matSteel);
+    jack.add(piston);
+
+    const pistonHighlight = cylinder(0.345, 0.345, 3.805, new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.18,
+      metalness: 1,
+      transparent: true,
+      opacity: 0.16
+    }));
+    jack.add(pistonHighlight);
+
+    const saddle = cylinder(0.92, 0.68, 0.34, matGold);
+    jack.add(saddle);
+
+    const load = box(2.5, 0.8, 2.5, matGold);
+    jack.add(load);
+
+    const loadEdges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(load.geometry),
+      new THREE.LineBasicMaterial({ color: 0xfffbeb, transparent: true, opacity: 0.55 })
+    );
+    load.add(loadEdges);
+
+    const riskCone = cylinder(0.72, 0.42, 3.8, matRed, 64);
+    jack.add(riskCone);
+
+    const bucklingLine = new THREE.Line(new THREE.BufferGeometry(), matRedLine);
+    jack.add(bucklingLine);
+
+    const forceArrow = new THREE.Group();
+    const arrowShaft = cylinder(0.055, 0.055, 1.25, new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.4, metalness: 0.2 }), 24);
+    const arrowHead = cylinder(0.2, 0, 0.42, new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4, metalness: 0.15 }), 32);
+    arrowShaft.position.y = 0.38;
+    arrowHead.position.y = -0.44;
+    forceArrow.add(arrowShaft, arrowHead);
+    jack.add(forceArrow);
+
+    function makeRing(y, radius, color, opacity) {
+      const curve = new THREE.EllipseCurve(0, 0, radius, radius, 0, Math.PI * 2, false, 0);
+      const pts = curve.getPoints(120).map(p => new THREE.Vector3(p.x, y, p.y));
+      const line = new THREE.LineLoop(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity })
+      );
+      return line;
+    }
+
+    const minRing = makeRing(3.35, 0.58, 0x22c55e, 0.9);
+    const maxRing = makeRing(6.2, 1.05, 0xef4444, 0.9);
+    jack.add(minRing, maxRing);
+
+    const dimensionGroup = new THREE.Group();
+    const dimLineMat = new THREE.LineBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.95 });
+    const dimLine = new THREE.Line(new THREE.BufferGeometry(), dimLineMat);
+    dimensionGroup.add(dimLine);
+    jack.add(dimensionGroup);
+
+    const labelCanvas = document.createElement("canvas");
+    labelCanvas.width = 512;
+    labelCanvas.height = 256;
+    const labelCtx = labelCanvas.getContext("2d");
+    const labelTexture = new THREE.CanvasTexture(labelCanvas);
+    const labelMat = new THREE.SpriteMaterial({ map: labelTexture, transparent: true });
+    const labelSprite = new THREE.Sprite(labelMat);
+    labelSprite.scale.set(2.3, 1.15, 1);
+    scene.add(labelSprite);
+
+    const extensionInput = document.getElementById("extension");
+    const lengthText = document.getElementById("lengthText");
+    const forceText = document.getElementById("forceText");
+    const riskText = document.getElementById("riskText");
+    const riskBar = document.getElementById("riskBar");
+    const dangerBadge = document.getElementById("dangerBadge");
+    const status = document.getElementById("status");
+    document.getElementById("minBtn").addEventListener("click", () => {
+      extensionInput.value = 25;
+      updateModel();
+    });
+    document.getElementById("maxBtn").addEventListener("click", () => {
+      extensionInput.value = 100;
+      updateModel();
+    });
+    extensionInput.addEventListener("input", updateModel);
+
+    function riskLabel(risk) {
+      if (risk >= 0.78) return ["高", "全伸出最危险", "当前接近或处于全伸出状态，临界承载能力最低。"];
+      if (risk >= 0.48) return ["中", "风险升高", "伸出长度增加，临界力明显下降。"];
+      return ["低", "相对安全", "活塞杆较短，临界力保持在较高水平。"];
+    }
+
+    function updateLabel(extension, forceRatio) {
+      labelCtx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
+      labelCtx.fillStyle = "rgba(15, 23, 42, 0.78)";
+      labelCtx.strokeStyle = "rgba(147, 197, 253, 0.75)";
+      labelCtx.lineWidth = 3;
+      labelCtx.beginPath();
+      labelCtx.roundRect(8, 8, 496, 164, 18);
+      labelCtx.fill();
+      labelCtx.stroke();
+      labelCtx.fillStyle = "#eef2ff";
+      labelCtx.font = "700 34px Microsoft YaHei, sans-serif";
+      labelCtx.fillText(`伸出 ${extension}%`, 34, 62);
+      labelCtx.fillStyle = "#bfdbfe";
+      labelCtx.font = "600 24px Microsoft YaHei, sans-serif";
+      labelCtx.fillText(`Pcr = ${Math.round(forceRatio * 100)}% P0`, 34, 108);
+      labelCtx.fillStyle = extension > 80 ? "#fecaca" : "#bbf7d0";
+      labelCtx.font = "500 20px Microsoft YaHei, sans-serif";
+      labelCtx.fillText(extension > 80 ? "长细比最大，屈曲风险最高" : "杆长缩短，抗失稳能力提升", 34, 146);
+      labelTexture.needsUpdate = true;
+    }
+
+    function updateBucklingCurve(bottomY, topY, extension) {
+      const points = [];
+      const height = topY - bottomY;
+      const amp = THREE.MathUtils.mapLinear(extension, 25, 100, 0.05, 0.42);
+      for (let i = 0; i <= 80; i++) {
+        const t = i / 80;
+        const y = bottomY + height * t;
+        const bend = Math.sin(t * Math.PI) * amp;
+        points.push(new THREE.Vector3(bend, y, 0.42));
+      }
+      bucklingLine.geometry.dispose();
+      bucklingLine.geometry = new THREE.BufferGeometry().setFromPoints(points);
+      bucklingLine.material.opacity = THREE.MathUtils.mapLinear(extension, 25, 100, 0.35, 1);
+    }
+
+    function updateDimensionLine(bottomY, topY) {
+      const x = 1.55;
+      const z = -0.9;
+      const pts = [
+        new THREE.Vector3(x, bottomY, z),
+        new THREE.Vector3(x, topY, z),
+        new THREE.Vector3(x - 0.16, topY - 0.16, z),
+        new THREE.Vector3(x, topY, z),
+        new THREE.Vector3(x + 0.16, topY - 0.16, z),
+        new THREE.Vector3(x, bottomY, z),
+        new THREE.Vector3(x - 0.16, bottomY + 0.16, z),
+        new THREE.Vector3(x, bottomY, z),
+        new THREE.Vector3(x + 0.16, bottomY + 0.16, z)
+      ];
+      dimLine.geometry.dispose();
+      dimLine.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+    }
+
+    function updateModel() {
+      const extension = Number(extensionInput.value);
+      const minVisibleRod = 1.05;
+      const maxVisibleRod = 3.9;
+      const rodLength = THREE.MathUtils.mapLinear(extension, 25, 100, minVisibleRod, maxVisibleRod);
+      const bottomY = 3.18;
+      const topY = bottomY + rodLength;
+      const fullLengthReference = maxVisibleRod;
+      const forceRatio = Math.pow(minVisibleRod / rodLength, 2);
+      const fullForceRatio = Math.pow(minVisibleRod / fullLengthReference, 2);
+      const normalizedForce = THREE.MathUtils.mapLinear(forceRatio, fullForceRatio, 1, 0.25, 1);
+      const risk = 1 - THREE.MathUtils.clamp((normalizedForce - 0.25) / 0.75, 0, 1);
+      const [riskName, badge, sentence] = riskLabel(risk);
+
+      piston.scale.y = rodLength / 3.8;
+      piston.position.y = bottomY + rodLength / 2;
+      piston.rotation.z = 0;
+      pistonHighlight.scale.y = piston.scale.y;
+      pistonHighlight.position.y = piston.position.y;
+      pistonHighlight.rotation.z = piston.rotation.z;
+
+      saddle.position.set(0, topY + 0.18, 0);
+      load.position.set(0, topY + 0.76, 0);
+      forceArrow.position.set(0, topY + 2.05, 0);
+
+      riskCone.scale.y = rodLength / 3.8;
+      riskCone.position.y = bottomY + rodLength / 2;
+      riskCone.material.opacity = THREE.MathUtils.mapLinear(extension, 25, 100, 0.08, 0.28);
+      riskCone.scale.x = THREE.MathUtils.mapLinear(extension, 25, 100, 0.65, 1.28);
+      riskCone.scale.z = riskCone.scale.x;
+
+      minRing.position.y = bottomY - 3.35 + minVisibleRod;
+      maxRing.position.y = bottomY - 6.2 + maxVisibleRod;
+      maxRing.material.opacity = extension > 86 ? 1 : 0.35;
+
+      updateBucklingCurve(bottomY, topY, extension);
+      updateDimensionLine(bottomY, topY);
+      updateLabel(extension, forceRatio);
+
+      labelSprite.position.set(-2.85, Math.min(topY + 0.65, 6.8), 0.35);
+
+      lengthText.textContent = `${extension}%`;
+      forceText.textContent = `${Math.round(forceRatio * 100)}%`;
+      riskText.textContent = riskName;
+      riskBar.style.width = `${Math.round(risk * 100)}%`;
+      dangerBadge.textContent = badge;
+      status.textContent = sentence;
+    }
+
+    function resize() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    }
+
+    window.addEventListener("resize", resize);
+    resize();
+    updateModel();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      jack.rotation.y += 0.0012;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
